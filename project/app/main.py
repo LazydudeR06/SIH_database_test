@@ -1,20 +1,27 @@
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
-from models import Document
-from clerk import get_current_user
-from validator import check_authenticity
-from audit import log_access
+from .models import DocumentORM, OCRResult
+from .clerk import get_current_user
+from .validator import check_authenticity
+from .audit import log_access
+from sqlalchemy.orm import Session
+from .db import get_db
+from .models import DocumentORM, OCRResult
 import easyocr
 import cv2
 import os
 import tempfile
 import shutil
+from schemas import (
+    DocumentCreate, DocumentResponse,
+    OCRResultCreate, OCRResultResponse
+)
+
 
 # Initialize FastAPI once
 app = FastAPI(title="Academic & Degree Verifier", version="1.0")
 
 # Initialize EasyOCR reader once (expensive to reload every request)
 reader = easyocr.Reader(['en', 'hi'], gpu=False)
-
 
 # ---------- Utility ----------
 def preprocess_image(image_path: str) -> str:
@@ -52,7 +59,7 @@ def home():
 
 
 @app.post("/check-authenticity")
-def validate_document(doc: Document, user=Depends(get_current_user)):
+def validate_document(doc: DocumentORM, user=Depends(get_current_user)):
     is_original = check_authenticity(doc.content)
     log_access(user["user_id"], "CHECK_DOCUMENT", doc.title)
     return {
@@ -77,14 +84,20 @@ def dashboard(user=Depends(get_current_user)):
 
 
 @app.post("/upload")
-async def upload_and_ocr(file: UploadFile = File(...)):
+async def upload_and_ocr(
+    file: UploadFile = File(...),
+    user=Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """
     Handles image upload:
     - Saves to a temporary file
     - Preprocesses with OpenCV
     - Extracts text with EasyOCR
+    - Saves OCR result to DB (Supabase/Postgres)
     - Deletes temp files after processing
     """
+
     if not file.filename:
         raise HTTPException(status_code=400, detail="No filename provided")
 
@@ -108,6 +121,16 @@ async def upload_and_ocr(file: UploadFile = File(...)):
         # Run OCR
         results = reader.readtext(processed_path, detail=0)
 
+        # --- Save results to DB ---
+        new_record = OCRResult(
+            filename=file.filename,
+            extracted_text=" ".join(results),
+            user_id=user["user_id"]   # save Clerk user ID
+        )
+        db.add(new_record)
+        db.commit()
+        db.refresh(new_record)
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"OCR failed: {str(e)}")
 
@@ -118,4 +141,8 @@ async def upload_and_ocr(file: UploadFile = File(...)):
         if 'processed_path' in locals() and os.path.exists(processed_path):
             os.remove(processed_path)
 
-    return {"filename": file.filename, "ocr_text": results}
+    return {
+        "filename": file.filename,
+        "ocr_text": results,
+        "db_id": new_record.id
+    }
