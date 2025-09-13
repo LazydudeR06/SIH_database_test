@@ -1,0 +1,75 @@
+{
+    "abi": [
+        {
+            "anonymous": false,
+            "inputs": [
+                {
+                    "indexed": true,
+                    "internalType": "bytes32",
+                    "name": "docHash",
+                    "type": "bytes32"
+                },
+                {
+                    "indexed": true,
+                    "internalType": "address",
+                    "name": "sender",
+                    "type": "address"
+                },
+                {
+                    "indexed": false,
+                    "internalType": "uint256",
+                    "name": "timestamp",
+                    "type": "uint256"
+                }
+            ],
+            "name": "DocumentStored",
+            "type": "event"
+        },
+        {
+            "inputs": [
+                {
+                    "internalType": "bytes32",
+                    "name": "docHash",
+                    "type": "bytes32"
+                }
+            ],
+            "name": "storeHash",
+            "outputs": [],
+            "stateMutability": "nonpayable",
+            "type": "function"
+        },
+        {
+            "inputs": [
+                {
+                    "internalType": "bytes32[]",
+                    "name": "hashes",
+                    "type": "bytes32[]"
+                }
+            ],
+            "name": "storeHashes",
+            "outputs": [],
+            "stateMutability": "nonpayable",
+            "type": "function"
+        },
+        {
+            "inputs": [
+                {
+                    "internalType": "bytes32",
+                    "name": "docHash",
+                    "type": "bytes32"
+                }
+            ],
+            "name": "verifyHash",
+            "outputs": [
+                {
+                    "internalType": "bool",
+                    "name": "exists",
+                    "type": "bool"
+                }
+            ],
+            "stateMutability": "view",
+            "type": "function"
+        }
+    ],
+    "address": "0xd59EB9359b0dFD00442dC9E1CF45E2f1767625Cc"
+}
